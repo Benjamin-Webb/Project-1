@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 # Define global parameters
-FRAME_TIME = 0.1        # time inteval
-GRAVITY_ACCEL = 0.12    # gravitaional acceleration parameter
-BOOST_ACCEL = 0.18      # Trust accelleration parameter
+FRAME_TIME = np.single(0.1)         # time inteval
+GRAVITY_ACCEL = np.single(0.12)     # gravitaional acceleration parameter
+BOOST_ACCEL = np.single(0.18)       # Trust accelleration parameter
 
 # Define Class for system dynamics
 class Dynamics(nn.Module):
@@ -34,17 +34,17 @@ class Dynamics(nn.Module):
 		# action: thrust or no thrust
 
 		# Apply gravitational acceleration
-		delta_gravity = torch.tensor([0.0, GRAVITY_ACCEL * FRAME_TIME], dtype=torch.double)
+		delta_gravity = torch.tensor([0.0, GRAVITY_ACCEL * FRAME_TIME], dtype=torch.float)
 
 		# Apply thrust
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.tensor([0.0, -1.0], dtype=torch.double) * action
+		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.tensor([0.0, -1.0], dtype=torch.float) * action
 
 		# Update velocity
 		state = state + delta_thrust + delta_gravity
 
 		# Update state vector
 		step_mat = torch.tensor([[1.0, FRAME_TIME],
-		                        [0.0, 1.0]], dtype=torch.double)
+		                        [0.0, 1.0]], dtype=torch.float)
 		state = torch.matmul(step_mat, state)
 
 		return state
@@ -97,7 +97,7 @@ class Simulation(nn.Module):
 	def intialize_state():
 		state = [1.0, 0.0]          # Need to update
 
-		return torch.tensor(data=state, dtype=torch.double, requires_grad=False)
+		return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
 
 	# Define Simulation class error, will need to be updated for increased state variables
 	@staticmethod
