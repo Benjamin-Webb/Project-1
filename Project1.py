@@ -104,3 +104,66 @@ class Simulation(nn.Module):
 	def error(state):
 		return state[0]**2 + state[1]**2
 
+# Define Optimizer class. Currently, using LBFGS
+class Optimize:
+
+	# Initialize class
+	def __init__(self, simulation):
+		self.simulation = simulation
+		self.parameters = simulation.controller.parameters()
+		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)      # Current learning rate at 0.01
+
+	# Define Optmize class step function
+	def step(self):
+		# Define Closure function so gradient can be calculated multiple times
+		def closure():
+			loss = self.simulation(self.simulation.state)
+			self.optimizer.zero_grad()
+			loss.backward()
+
+			return loss
+
+		# Possible reccursive operation
+		self.optimizer.step(closure)
+
+		return closure()
+
+	# Define Optimize class train function
+	def train(self, epochs):
+		for epoch in range(epochs):
+			loss = self.step()
+			print('[%d] loss: %.3f' % (epoch + 1, loss))
+			self.visualize()                                # Will update later
+
+	# Define Optimize class visulize function, will be updated later
+	def visualize(self):
+		data = np.array([self.simulation.state_trajectory[i].detach().numpy for i in range(self.simulation.T)])
+		x = data[:, 0]
+		y = data[:, 1]
+		plt.plot(x, y)
+		plt.show()
+
+# Define main program script
+if __name__ == '__main__':
+
+	# Begin timer
+	start_time = time.time()
+
+	# Initial test to ensure code is working
+	T = 100             # number of time steps
+	dim_input = 2       # number of state-space variables, currently 2, will be expanded to 4
+	dim_hidden = 6      # depth of neurnal network
+	dim_output = 1      # number of actions, currently 1, will be expanded to 2
+
+	d = Dynamics()                                      # Created Dynamics class object
+	c = Controller(dim_input, dim_hidden, dim_output)   # Created Controller class object
+	s = Simulation(controller=c, dynamics=d, T=T)       # Created Simulation class object
+	o = Optimize(simulation=s)                          # Created Optimizer Class object
+	o.train(epochs=40)                                  # Test code
+
+	# End timer
+	end_time = time.time()
+
+	# Print program execution time
+	total_time = end_time - start_time
+	print('Execution Time:', total_time, 'seconds')
