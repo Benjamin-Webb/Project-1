@@ -4,14 +4,14 @@
 
 # Import required libraries
 import logging
-import math
-import random
+#import math
+#import random
 import numpy as np
 import time
 import torch
 import torch.nn as nn
 from torch import optim
-from torch.nn import utils
+#from torch.nn import utils
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class Simulation(nn.Module):
 	# Initialize Class
 	def __init__(self, controller, dynamics, T):
 		super(Simulation, self).__init__()
-		self.state = self.initialize_state()
+		self.state = self.intialize_state()
 		self.controller = controller
 		self.dynamics = dynamics
 		self.T = T
