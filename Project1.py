@@ -56,7 +56,7 @@ class Controller(nn.Module):
 	def __init__(self, dim_input, dim_hidden, dim_output):
 		# dim_input: # of system states
 		# dim_output: # of actions
-		# dim_hidden: TBD, currently set to 1
+		# dim_hidden: TBD
 
 		super(Controller, self).__init__()
 		self.network = nn.Sequential(nn.Linear(dim_input, dim_hidden),
@@ -95,7 +95,7 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		state = [1.0, 0.0]          # Need to update
+		state = np.array([1.0, 0.0], dtype=np.single)          # Need to update
 
 		return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
 
@@ -109,6 +109,7 @@ class Optimize:
 
 	# Initialize class
 	def __init__(self, simulation):
+		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
 		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)      # Current learning rate at 0.01
@@ -137,7 +138,11 @@ class Optimize:
 
 	# Define Optimize class visulize function, will be updated later
 	def visualize(self):
-		data = np.array([self.simulation.state_trajectory[i].detach().numpy for i in range(self.simulation.T)])
+		data = np.zeros((self.simulation.T, 2), dtype=np.single)
+		for i in range(self.simulation.T):
+			temp = self.simulation.state_trajectory[i].detach()
+			data[i, :] = temp.numpy()
+
 		x = data[:, 0]
 		y = data[:, 1]
 		plt.plot(x, y)
