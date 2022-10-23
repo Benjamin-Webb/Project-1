@@ -5,7 +5,7 @@
 # Import required libraries
 import logging
 #import math
-#import random
+import random as rand
 import numpy as np
 import time
 import torch
@@ -95,7 +95,8 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		state = np.array([1.0, 0.0], dtype=np.single)          # Need to update
+		state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25)],
+		                 dtype=np.single)
 
 		return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
 
