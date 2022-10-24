@@ -48,12 +48,12 @@ class Dynamics(nn.Module):
 		# Apply thrust
 		n = state.size(dim=0)
 		temp_state = torch.zeros((n, 5))
-		temp_state[:, 1] = -torch.sin(state[:, 4])
-		temp_state[:, 3] = torch.cos(state[:, 4])
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
+		temp_state[:, 1] = -torch.sin(state[4])
+		temp_state[:, 3] = torch.cos(state[4])
+		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[0].reshape(-1, 1))
 
 		# Apply change in theta
-		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 1].reshape(-1, 1))
+		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[1].reshape(-1, 1))
 
 		# Combine dynamics
 		state = state + delta_gravity + delta_thrust + delta_theta
@@ -115,15 +115,15 @@ class Simulation(nn.Module):
 	@staticmethod
 	def intialize_state():
 		state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
-		                  rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25)],
-		                 dtype=np.single)
+		                  rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
+		                  rand.gauss(mu=0.5, sigma=0.25)], dtype=np.single)
 
 		return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
 
 	# Define Simulation class error, will need to be updated for increased state variables
 	@staticmethod
 	def error(state):
-		return state[0]**2 + state[1]**2 + state[2]**2 + state[3]**2
+		return state[0]**2 + state[1]**2 + state[2]**2 + state[3]**2 + state[4]**2
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
