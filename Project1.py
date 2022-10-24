@@ -115,11 +115,13 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
-		                  rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
-		                  rand.gauss(mu=0.5, sigma=0.25)], dtype=np.single)
+		# state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
+		#                   rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
+		#                   rand.gauss(mu=0.5, sigma=0.25)], dtype=np.single)
+		state = nn.BatchNorm1d((100, 5))
 
-		return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
+		#return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
+		return torch.asarray(obj=state, dtype=torch.float, requires_grad=False)
 
 	# Define Simulation class error, will need to be updated for increased state variables
 	@staticmethod
