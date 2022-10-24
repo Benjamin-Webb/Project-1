@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 FRAME_TIME = np.single(0.1)         # time inteval
 GRAVITY_ACCEL = np.single(0.12)     # gravitaional acceleration parameter
 BOOST_ACCEL = np.single(0.18)       # Trust accelleration parameter
-ROT_ACCEL = np.single(20)           # Rotational acceleration constant
-BOOST2_ACCEL = np.single(0.06)      # Thrust acceleration parameter for side thrusters
 
 # Define Class for system dynamics
 class Dynamics(nn.Module):
@@ -34,34 +32,38 @@ class Dynamics(nn.Module):
 	def forward(state, action):
 
 		# action: thrust or no thrust
-		# action[0]: translational
-		# action[1]: rotational
+		# action[0]: thrust control
+		# action[1]: omega control
 
-		# Translational Dynamics
-		# Apply gravitational acceleration
-		delta_gravity = torch.tensor([0.0, GRAVITY_ACCEL * FRAME_TIME, 0.0, 0.0], dtype=torch.float)
+		# State: state variables
+		# state[0] = x
+		# state[1] = xdot
+		# state[2] = y
+		# state[3] = ydot
+		# state[4] = theta
+
+		# Apply gravitational acceleration, only on ydot
+		delta_gravity = torch.tensor([0.0, 0.0, 0.0, -GRAVITY_ACCEL * FRAME_TIME, 0.0], dtype=torch.float)
 
 		# Apply thrust
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.tensor([0.0, -1.0, 0.0, 0.0], dtype=torch.float) * action[0]
+		n = state.size(dim=0)
+		temp_state = torch.zeros((n, 5))
+		temp_state[:, 1] = -torch.sin(state[:, 4])
+		temp_state[:, 3] = torch.cos(state[:, 4])
+		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
 
-		# Update velocity
-		state = state + delta_thrust + delta_gravity
+		# Apply change in theta
+		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 1].reshape(-1, 1))
 
-		# Rotational Dynamics
-		# Apply rotational acceleration
-		delta_rotate = torch.tensor([0.0, 0.0, 0.0, ROT_ACCEL * FRAME_TIME], dtype=torch.float)
+		# Combine dynamics
+		state = state + delta_gravity + delta_thrust + delta_theta
 
-		# Apply side thrusters
-		delta_thrust2 = BOOST2_ACCEL * FRAME_TIME * torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float) * action[1]
-
-		# Update rotational velocity
-		state = state + delta_thrust2 + delta_rotate
-
-		# Update state vector
-		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0],
-		                         [0.0, 1.0, 0.0, 0.0],
-		                         [0.0, 0.0, 1.0, FRAME_TIME],
-		                         [0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
+		# Update state vector, 5x1
+		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0, 0.0],
+		                         [0.0, 1.0, 0.0, 0.0], 0.0,
+		                         [0.0, 0.0, 1.0, FRAME_TIME, 0.0],
+		                         [0.0, 0.0, 0.0, 1.0, 0.0],
+		                         [0.0, 0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
 		state = torch.matmul(step_mat, state)
 
 		return state
@@ -153,18 +155,25 @@ class Optimize:
 		for epoch in range(epochs):
 			loss = self.step()
 			print('[%d] loss: %.3f' % (epoch + 1, loss))
-			self.visualize()                                # Will update later
+			#self.visualize()                                # Will update later
 
 	# Define Optimize class visulize function, will be updated later
 	def visualize(self):
-		data = np.zeros((self.simulation.T, 2), dtype=np.single)
+		data = np.zeros((self.simulation.T, 4), dtype=np.single)
 		for i in range(self.simulation.T):
 			temp = self.simulation.state_trajectory[i].detach()
 			data[i, :] = temp.numpy()
 
-		x = data[:, 0]
-		y = data[:, 1]
-		plt.plot(x, y)
+		x1 = data[:, 0]
+		y1 = data[:, 1]
+		fig = plt.figure(num=1)
+		plt.plot(x1, y1)
+		plt.show()
+
+		x2 = data[:, 2]
+		y2 = data[:, 3]
+		fig = plt.figure(num=2)
+		plt.plot(x2, y2)
 		plt.show()
 
 # Define main program script
@@ -175,8 +184,8 @@ if __name__ == '__main__':
 
 	# Initial test to ensure code is working
 	T = 100             # number of time steps
-	dim_input = 4       # number of state-space variables, currently 4
-	dim_hidden = 6      # depth of neurnal network
+	dim_input = 5       # number of state-space variables, currently 5
+	dim_hidden = 20     # depth of neurnal network
 	dim_output = 2      # number of actions, currently 2
 
 	d = Dynamics()                                      # Created Dynamics class object
