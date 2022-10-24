@@ -54,6 +54,9 @@ class Dynamics(nn.Module):
 		# Apply side thrusters
 		delta_thrust2 = BOOST2_ACCEL * FRAME_TIME * torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float) * action[1]
 
+		# Update rotational velocity
+		state = state + delta_thrust2 + delta_rotate
+
 		# Update state vector
 		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0]
 		                         [0.0, 1.0, 0.0, 0.0]
