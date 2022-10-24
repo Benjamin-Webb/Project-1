@@ -78,9 +78,10 @@ class Controller(nn.Module):
 		# dim_hidden: TBD
 
 		super(Controller, self).__init__()
+		# Attempting extra layer
 		self.network = nn.Sequential(nn.Linear(dim_input, dim_hidden),
 		                             nn.Tanh(), nn.Linear(dim_hidden, dim_output),
-		                             nn.Sigmoid())
+		                             nn.ELU(),  nn.Sigmoid())
 
 	# define Controller forward method
 	def forward(self, state):
