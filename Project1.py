@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 FRAME_TIME = np.single(0.1)         # time inteval
 GRAVITY_ACCEL = np.single(0.12)     # gravitaional acceleration parameter
 BOOST_ACCEL = np.single(0.18)       # Trust accelleration parameter
+ROT_ACCEL = np.single(20)           # Rotational acceleration constant
+BOOST2_ACCEL = np.single(0.06)      # Thrust acceleration parameter for side thrusters
 
 # Define Class for system dynamics
 class Dynamics(nn.Module):
@@ -32,19 +34,31 @@ class Dynamics(nn.Module):
 	def forward(state, action):
 
 		# action: thrust or no thrust
+		# action[0]: translational
+		# action[1]: rotational
 
+		# Translational Dynamics
 		# Apply gravitational acceleration
-		delta_gravity = torch.tensor([0.0, GRAVITY_ACCEL * FRAME_TIME], dtype=torch.float)
+		delta_gravity = torch.tensor([0.0, GRAVITY_ACCEL * FRAME_TIME, 0.0, 0.0], dtype=torch.float)
 
 		# Apply thrust
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.tensor([0.0, -1.0], dtype=torch.float) * action
+		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.tensor([0.0, -1.0, 0.0, 0.0], dtype=torch.float) * action[0]
 
 		# Update velocity
 		state = state + delta_thrust + delta_gravity
 
+		# Rotational Dynamics
+		# Apply rotational acceleration
+		delta_rotate = torch.tensor([0.0, 0.0, 0.0, ROT_ACCEL * FRAME_TIME], dtype=torch.float)
+
+		# Apply side thrusters
+		delta_thrust2 = BOOST2_ACCEL * FRAME_TIME * torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float) * action[1]
+
 		# Update state vector
-		step_mat = torch.tensor([[1.0, FRAME_TIME],
-		                        [0.0, 1.0]], dtype=torch.float)
+		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0]
+		                         [0.0, 1.0, 0.0, 0.0]
+		                         [0.0, 0.0, 1.0, FRAME_TIME]
+		                         [0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
 		state = torch.matmul(step_mat, state)
 
 		return state
@@ -157,9 +171,9 @@ if __name__ == '__main__':
 
 	# Initial test to ensure code is working
 	T = 100             # number of time steps
-	dim_input = 2       # number of state-space variables, currently 2, will be expanded to 4
+	dim_input = 4       # number of state-space variables, currently 4
 	dim_hidden = 6      # depth of neurnal network
-	dim_output = 1      # number of actions, currently 1, will be expanded to 2
+	dim_output = 2      # number of actions, currently 2
 
 	d = Dynamics()                                      # Created Dynamics class object
 	c = Controller(dim_input, dim_hidden, dim_output)   # Created Controller class object
