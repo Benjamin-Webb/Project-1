@@ -47,20 +47,20 @@ class Dynamics(nn.Module):
 
 		# Apply thrust
 		n = state.size(dim=0)
-		temp_state = torch.zeros((n, 5))
-		temp_state[:, 1] = -torch.sin(state[4])
-		temp_state[:, 3] = torch.cos(state[4])
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[0].reshape(-1, 1))
+		temp_state = torch.zeros((n, 1))
+		temp_state[1] = -torch.sin(state[4])
+		temp_state[3] = torch.cos(state[4])
+		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[0]).reshape(-1)
 
 		# Apply change in theta
-		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[1].reshape(-1, 1))
+		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[1]).reshape(-1)
 
 		# Combine dynamics
 		state = state + delta_gravity + delta_thrust + delta_theta
 
 		# Update state vector, 5x1
 		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0, 0.0],
-		                         [0.0, 1.0, 0.0, 0.0], 0.0,
+		                         [0.0, 1.0, 0.0, 0.0, 0.0],
 		                         [0.0, 0.0, 1.0, FRAME_TIME, 0.0],
 		                         [0.0, 0.0, 0.0, 1.0, 0.0],
 		                         [0.0, 0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
