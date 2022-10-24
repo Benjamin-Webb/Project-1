@@ -112,7 +112,8 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25)],
+		state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
+		                  rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25)],
 		                 dtype=np.single)
 
 		return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
@@ -120,7 +121,7 @@ class Simulation(nn.Module):
 	# Define Simulation class error, will need to be updated for increased state variables
 	@staticmethod
 	def error(state):
-		return state[0]**2 + state[1]**2
+		return state[0]**2 + state[1]**2 + state[2]**2 + state[3]**2
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
