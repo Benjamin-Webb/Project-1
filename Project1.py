@@ -47,13 +47,15 @@ class Dynamics(nn.Module):
 
 		# Apply thrust
 		n = state.size(dim=0)
-		temp_state = torch.zeros((n, 1))
-		temp_state[1] = -torch.sin(state[4])
-		temp_state[3] = torch.cos(state[4])
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[0]).reshape(-1)
+		temp_state = torch.zeros((n, 5))
+		temp_state[:, 1] = -torch.sin(state[:, 4])
+		temp_state[:, 3] = torch.cos(state[:, 4])
+		test1 = action[:, 0].reshape(-1, 1)
+		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
 
 		# Apply change in theta
-		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[1]).reshape(-1)
+		test2 = action[:, 1].reshape(-1, 1)
+		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 1].reshape(-1, 1))
 
 		# Combine dynamics
 		state = state + delta_gravity + delta_thrust + delta_theta
@@ -80,8 +82,8 @@ class Controller(nn.Module):
 		super(Controller, self).__init__()
 		# Attempting extra layer
 		self.network = nn.Sequential(nn.Linear(dim_input, dim_hidden),
-		                             nn.Tanh(), nn.Linear(dim_hidden, dim_output),
-		                             nn.ELU(),  nn.Sigmoid())
+		                             nn.Tanh(), nn.Linear(dim_hidden, dim_hidden),
+		                             nn.ELU(),  nn.Linear(dim_hidden, dim_output), nn.Sigmoid())
 
 	# define Controller forward method
 	def forward(self, state):
@@ -118,10 +120,11 @@ class Simulation(nn.Module):
 		# state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
 		#                   rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
 		#                   rand.gauss(mu=0.5, sigma=0.25)], dtype=np.single)
-		state = nn.BatchNorm1d((100, 5))
+		inp = torch.rand((100, 5), dtype=torch.float, requires_grad=False)
+		batch = nn.BatchNorm1d(num_features=5)
 
 		#return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
-		return torch.asarray(obj=state, dtype=torch.float, requires_grad=False)
+		return batch(inp)
 
 	# Define Simulation class error, will need to be updated for increased state variables
 	@staticmethod
