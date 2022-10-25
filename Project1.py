@@ -50,11 +50,9 @@ class Dynamics(nn.Module):
 		temp_state = torch.zeros((n, 5))
 		temp_state[:, 1] = -torch.sin(state[:, 4])
 		temp_state[:, 3] = torch.cos(state[:, 4])
-		test1 = action[:, 0].reshape(-1, 1)
 		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
 
 		# Apply change in theta
-		test2 = action[:, 1].reshape(-1, 1)
 		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 1].reshape(-1, 1))
 
 		# Combine dynamics
