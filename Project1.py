@@ -124,11 +124,13 @@ class Simulation(nn.Module):
 		return state
 
 	# Define Simulation class error, will need to be updated for increased state variables
-	def error(self, state):
-		x = torch.zeros((5, 1), dtype=torch.float)
-		for i in range(0, 5, 1):
-			x[i] = torch.linalg.vector_norm(state[:, i], ord=2)
-		return x[0]**2 + x[1]**2 + x[2]**2 + x[3]**2 + x[4]**2
+	@staticmethod
+	def error(state):
+		loss = torch.linalg.norm(state[:, 0], ord=2)**2 + torch.linalg.norm(state[:, 1], ord=2)**2 +\
+			torch.linalg.norm(state[:, 2], ord=2)**2 + torch.linalg.norm(state[:, 3], ord=2)**2 +\
+			torch.linalg.norm(state[:, 4], ord=2)**2
+
+		return loss
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
