@@ -5,7 +5,7 @@
 # Import required libraries
 import logging
 #import math
-import random as rand
+#import random as rand
 import numpy as np
 import time
 import torch
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 # Define global parameters
-FRAME_TIME = np.single(0.1)                 # time inteval
+FRAME_TIME = np.single(1.0)                 # time inteval
 GRAVITY_ACCEL = np.single(9.81 / 1000)      # gravitaional acceleration parameter
 BOOST_ACCEL = np.single(14.715 / 1000)      # Trust accelleration parameter
 
@@ -126,11 +126,7 @@ class Simulation(nn.Module):
 	# Define Simulation class error, will need to be updated for increased state variables
 	@staticmethod
 	def error(state):
-		loss = torch.linalg.norm(state[:, 0], ord=2)**2 + torch.linalg.norm(state[:, 1], ord=2)**2 +\
-			torch.linalg.norm(state[:, 2], ord=2)**2 + torch.linalg.norm(state[:, 3], ord=2)**2 +\
-			torch.linalg.norm(state[:, 4], ord=2)**2
-
-		return loss
+		return torch.sum(torch.pow(torch.linalg.vector_norm(state, ord=2, dim=0), 2)) / state.size(dim=0)
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
@@ -140,7 +136,7 @@ class Optimize:
 		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
-		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)      # Current learning rate at 0.01
+		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)   # Current set learning rate
 
 	# Define Optmize class step function
 	def step(self):
@@ -190,7 +186,7 @@ if __name__ == '__main__':
 	start_time = time.time()
 
 	# Initial test to ensure code is working
-	T = 100             # number of time steps
+	T = 20              # number of time steps
 	dim_input = 5       # number of state-space variables, currently 5
 	dim_hidden = 20     # size of neurnal network
 	dim_output = 2      # number of actions, currently 2
