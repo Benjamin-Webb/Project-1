@@ -58,13 +58,13 @@ class Dynamics(nn.Module):
 		# Combine dynamics
 		state = state + delta_gravity + delta_thrust + delta_theta
 
-		# Update state vector, 5x1
+		# Update state vector
 		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0, 0.0],
 		                         [0.0, 1.0, 0.0, 0.0, 0.0],
 		                         [0.0, 0.0, 1.0, FRAME_TIME, 0.0],
 		                         [0.0, 0.0, 0.0, 1.0, 0.0],
 		                         [0.0, 0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
-		state = torch.matmul(step_mat, state)
+		state = torch.matmul(step_mat, state.T)
 
 		return state
 
