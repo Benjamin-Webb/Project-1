@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 # Define global parameters
 FRAME_TIME = np.single(1.0)                 # time inteval
 GRAVITY_ACCEL = np.single(9.81 / 1000)      # gravitaional acceleration parameter
-BOOST_ACCEL = np.single(14.715 / 1000)      # Trust accelleration parameter
+BOOST_ACCEL = np.single(14.715 / 1000)      # Thrust accelleration parameter, main engine
+BOOST2_ACCEL = np.single(1.4715 / 1000)     # Thrust acceleration parameter, side thrusters
 
 # Define Class for system dynamics
 class Dynamics(nn.Module):
@@ -32,8 +33,9 @@ class Dynamics(nn.Module):
 	def forward(state, action):
 
 		# action: thrust or no thrust
-		# action[0]: thrust control
-		# action[1]: omega control
+		# action[0]: thrust control, main engine
+		# action[1]: thrust control, side thrusters
+		# action[2]: omega control
 
 		# State: state variables
 		# state[0] = x
@@ -50,17 +52,23 @@ class Dynamics(nn.Module):
 		delta_gravity = torch.zeros((n, 5), dtype=torch.float)
 		delta_gravity = torch.add(input=delta_gravity, other=temp_state)
 
-		# Apply thrust
+		# Apply thrust, main engine
 		temp_state = torch.zeros((n, 5), dtype=torch.float)
 		temp_state[:, 1] = -torch.sin(state[:, 4])
 		temp_state[:, 3] = torch.cos(state[:, 4])
-		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
+		delta_thrust1 = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
+
+		# Apply thrust, side thrusters
+		temp_state = torch.zeros((n, 5), dtype=torch.float)
+		temp_state[:, 1] = torch.cos(state[:, 4])
+		temp_state[:, 3] = -torch.sin(state[:, 4])
+		delta_thrust2 = BOOST2_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 1].reshape(-1, 1))
 
 		# Apply change in theta
-		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 1].reshape(-1, 1))
+		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 2].reshape(-1, 1))
 
 		# Combine dynamics
-		state = state + delta_gravity + delta_thrust + delta_theta
+		state = state + delta_gravity + delta_thrust1 + delta_thrust2 + delta_theta
 
 		# Update state vector
 		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0, 0.0],
@@ -68,6 +76,7 @@ class Dynamics(nn.Module):
 		                         [0.0, 0.0, 1.0, FRAME_TIME, 0.0],
 		                         [0.0, 0.0, 0.0, 1.0, 0.0],
 		                         [0.0, 0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
+
 		state = torch.matmul(step_mat, state.T)
 
 		return state.T
@@ -82,10 +91,11 @@ class Controller(nn.Module):
 		# dim_hidden: TBD
 
 		super(Controller, self).__init__()
-		# Attempting extra layer
+		# Added 2 extra layers
 		self.network = nn.Sequential(nn.Linear(dim_input, dim_hidden),
 		                             nn.Tanh(), nn.Linear(dim_hidden, dim_hidden),
-		                             nn.ELU(),  nn.Linear(dim_hidden, dim_output), nn.Sigmoid())
+		                             nn.ELU(),  nn.Linear(dim_hidden, dim_hidden),
+		                             nn.GELU(), nn.Linear(dim_hidden, dim_output), nn.Sigmoid())
 
 	# define Controller forward method
 	def forward(self, state):
@@ -123,9 +133,10 @@ class Simulation(nn.Module):
 
 		return state
 
-	# Define Simulation class error, will need to be updated for increased state variables
+	# Define Simulation class error
 	@staticmethod
 	def error(state):
+		# Sum of the 2-nmom squared all divided by number of batches
 		return torch.sum(torch.pow(torch.linalg.vector_norm(state, ord=2, dim=0), 2)) / state.size(dim=0)
 
 # Define Optimizer class. Currently, using LBFGS
@@ -188,8 +199,8 @@ if __name__ == '__main__':
 	# Initial test to ensure code is working
 	T = 20              # number of time steps
 	dim_input = 5       # number of state-space variables, currently 5
-	dim_hidden = 20     # size of neurnal network
-	dim_output = 2      # number of actions, currently 2
+	dim_hidden = 30     # size of neurnal network
+	dim_output = 3      # number of actions, currently 3
 
 	d = Dynamics()                                      # Created Dynamics class object
 	c = Controller(dim_input, dim_hidden, dim_output)   # Created Controller class object
