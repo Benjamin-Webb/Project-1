@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 # Define global parameters
-FRAME_TIME = np.single(0.1)         # time inteval
-GRAVITY_ACCEL = np.single(0.12)     # gravitaional acceleration parameter
-BOOST_ACCEL = np.single(0.18)       # Trust accelleration parameter
+FRAME_TIME = np.single(0.1)                 # time inteval
+GRAVITY_ACCEL = np.single(9.81 / 1000)      # gravitaional acceleration parameter
+BOOST_ACCEL = np.single(14.715 / 1000)      # Trust accelleration parameter
 
 # Define Class for system dynamics
 class Dynamics(nn.Module):
@@ -42,12 +42,16 @@ class Dynamics(nn.Module):
 		# state[3] = ydot
 		# state[4] = theta
 
+		# Batch size
+		n = state.size(dim=0)
+
 		# Apply gravitational acceleration, only on ydot
-		delta_gravity = torch.tensor([0.0, 0.0, 0.0, -GRAVITY_ACCEL * FRAME_TIME, 0.0], dtype=torch.float)
+		temp_state = torch.tensor([0.0, 0.0, 0.0, -GRAVITY_ACCEL * FRAME_TIME, 0.0], dtype=torch.float)
+		delta_gravity = torch.zeros((n, 5), dtype=torch.float)
+		delta_gravity = torch.add(input=delta_gravity, other=temp_state)
 
 		# Apply thrust
-		n = state.size(dim=0)
-		temp_state = torch.zeros((n, 5))
+		temp_state = torch.zeros((n, 5), dtype=torch.float)
 		temp_state[:, 1] = -torch.sin(state[:, 4])
 		temp_state[:, 3] = torch.cos(state[:, 4])
 		delta_thrust = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
@@ -66,7 +70,7 @@ class Dynamics(nn.Module):
 		                         [0.0, 0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
 		state = torch.matmul(step_mat, state.T)
 
-		return state
+		return state.T
 
 # Define Controller Class
 class Controller(nn.Module):
@@ -115,19 +119,16 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		# state = np.array([rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
-		#                   rand.gauss(mu=0.5, sigma=0.25), rand.gauss(mu=0.5, sigma=0.25),
-		#                   rand.gauss(mu=0.5, sigma=0.25)], dtype=np.single)
-		inp = torch.rand((100, 5), dtype=torch.float, requires_grad=False)
-		batch = nn.BatchNorm1d(num_features=5)
+		state = torch.rand((100, 5), dtype=torch.float, requires_grad=False)
 
-		#return torch.tensor(data=state, dtype=torch.float, requires_grad=False)
-		return batch(inp)
+		return state
 
 	# Define Simulation class error, will need to be updated for increased state variables
-	@staticmethod
-	def error(state):
-		return state[0]**2 + state[1]**2 + state[2]**2 + state[3]**2 + state[4]**2
+	def error(self, state):
+		x = torch.zeros((5, 1), dtype=torch.float)
+		for i in range(0, 5, 1):
+			x[i] = torch.linalg.vector_norm(state[:, i], ord=2)
+		return x[0]**2 + x[1]**2 + x[2]**2 + x[3]**2 + x[4]**2
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
@@ -189,7 +190,7 @@ if __name__ == '__main__':
 	# Initial test to ensure code is working
 	T = 100             # number of time steps
 	dim_input = 5       # number of state-space variables, currently 5
-	dim_hidden = 20     # depth of neurnal network
+	dim_hidden = 20     # size of neurnal network
 	dim_output = 2      # number of actions, currently 2
 
 	d = Dynamics()                                      # Created Dynamics class object
