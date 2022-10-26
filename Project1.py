@@ -161,10 +161,12 @@ class Optimize:
 		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
-		self.optimizer = optim.LBFGS(self.parameters, lr=1.0)
+		self.optimizer = optim.LBFGS(self.parameters, lr=0.1)
 		# Implementing dynamic learning rate
-		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=5,
-		                                                            cooldown=2, verbose=True)
+		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=3,
+		                                                            cooldown=1, verbose=True)
+		# Parameter for plotting
+		self.best_loss = torch.tensor(np.inf, dtype=torch.float)
 
 	# Define Optmize class step function
 	def step(self):
@@ -187,26 +189,32 @@ class Optimize:
 			loss = self.step()
 			self.scheduler.step(metrics=loss)
 			print('[%d] loss: %.3f' % (epoch + 1, loss))
-			#self.visualize()                                # Will update later
+			if loss < self.best_loss:
+				self.best_loss = loss
+				best_state = torch.tensor(np.full((self.simulation.T, 5), np.inf, dtype=np.single), dtype=torch.float)
+				for i in range(self.simulation.T):
+					temp1 = self.simulation.state_trajectory[i].detach()
+					for j in range(self.simulation.state.size(dim=0)):
+						temp2 = torch.pow(torch.linalg.vector_norm(temp1[j, :].detach(), ord=2), 2)
+						if temp2 < torch.pow(torch.linalg.vector_norm(best_state, ord=2), 2):
+							best_state[i, :] = temp1[j, :].detach()
+
+				self.visualize()                                # Will update later
 
 	# Define Optimize class visulize function, will be updated later
 	def visualize(self):
-		data = np.zeros((self.simulation.T, 4), dtype=np.single)
+		data = np.zeros((self.simulation.state.size(dim=0), 5), dtype=np.single)
 		for i in range(self.simulation.T):
-			temp = self.simulation.state_trajectory[i].detach()
-			data[i, :] = temp.numpy()
+			for j in range(0, 5, 1):
+				temp = self.simulation.state_trajectory[i].detach()
+				data[:, j] = temp[:, j].numpy()
 
 		x1 = data[:, 0]
-		y1 = data[:, 1]
-		fig = plt.figure(num=1)
+		y1 = data[:, 2]
+		plt.figure(num=1)
 		plt.plot(x1, y1)
 		plt.show()
 
-		x2 = data[:, 2]
-		y2 = data[:, 3]
-		fig = plt.figure(num=2)
-		plt.plot(x2, y2)
-		plt.show()
 
 # Define main program script
 if __name__ == '__main__':
