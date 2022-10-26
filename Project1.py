@@ -142,7 +142,8 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		state = torch.rand((100, 5), dtype=torch.float, requires_grad=False)
+		# Increase batch size to 1000
+		state = torch.rand(size=(1000, 5), dtype=torch.float, requires_grad=False)
 
 		return state
 
@@ -160,7 +161,10 @@ class Optimize:
 		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
-		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)   # Current set learning rate
+		self.optimizer = optim.LBFGS(self.parameters, lr=1.0)
+		# Implementing dynamic learning rate
+		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=5,
+		                                                            cooldown=2, verbose=True)
 
 	# Define Optmize class step function
 	def step(self):
@@ -181,6 +185,7 @@ class Optimize:
 	def train(self, epochs):
 		for epoch in range(epochs):
 			loss = self.step()
+			self.scheduler.step(metrics=loss)
 			print('[%d] loss: %.3f' % (epoch + 1, loss))
 			#self.visualize()                                # Will update later
 
@@ -212,7 +217,7 @@ if __name__ == '__main__':
 	# Initial test to ensure code is working
 	T = 20              # number of time steps
 	dim_input = 5       # number of state-space variables, currently 5
-	dim_hidden = 30     # size of neurnal network
+	dim_hidden = 150    # size of neurnal network
 	dim_output = 3      # number of actions, currently 3
 
 	d = Dynamics()                                      # Created Dynamics class object
