@@ -166,7 +166,8 @@ class Optimize:
 		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=3,
 		                                                            cooldown=1, verbose=True)
 		# Parameter for plotting
-		self.best_loss = torch.tensor(np.inf, dtype=torch.float)
+		self.best_loss = torch.tensor(np.inf, dtype=torch.float, requires_grad=False)
+		self.best_state = torch.tensor(np.zeros((self.simulation.T, 5)), dtype=torch.float, requires_grad=False)
 
 	# Define Optmize class step function
 	def step(self):
@@ -191,23 +192,17 @@ class Optimize:
 			print('[%d] loss: %.3f' % (epoch + 1, loss))
 			if loss < self.best_loss:
 				self.best_loss = loss
-				best_state = torch.tensor(np.full((self.simulation.T, 5), np.inf, dtype=np.single), dtype=torch.float)
+				temp = self.simulation.state_trajectory[-1].detach()
+				(minx, idx) = torch.min(torch.linalg.vector_norm(temp, ord=2, dim=1).reshape(-1, 1), dim=0)
 				for i in range(self.simulation.T):
-					temp1 = self.simulation.state_trajectory[i].detach()
-					for j in range(self.simulation.state.size(dim=0)):
-						temp2 = torch.pow(torch.linalg.vector_norm(temp1[j, :].detach(), ord=2), 2)
-						if temp2 < torch.pow(torch.linalg.vector_norm(best_state, ord=2), 2):
-							best_state[i, :] = temp1[j, :].detach()
+					temp_state = self.simulation.state_trajectory[i].detach()
+					self.best_state[i, :] = temp_state[idx, :]
 
 				self.visualize()                                # Will update later
 
 	# Define Optimize class visulize function, will be updated later
 	def visualize(self):
-		data = np.zeros((self.simulation.state.size(dim=0), 5), dtype=np.single)
-		for i in range(self.simulation.T):
-			for j in range(0, 5, 1):
-				temp = self.simulation.state_trajectory[i].detach()
-				data[:, j] = temp[:, j].numpy()
+		data = np.array(self.best_state.detach())
 
 		x1 = data[:, 0]
 		y1 = data[:, 2]
