@@ -69,22 +69,19 @@ class Dynamics(nn.Module):
 
 		# Apply drag
 		rho = RHO_0 * torch.exp(-state[:, 2])
-		Fdx = 0.5 * CD * A1 * torch.mul(rho, torch.pow(input=state[:, 1], exponent=2)).reshape(-1, 1)
-		Fdy = 0.5 * CD * A2 * torch.mul(rho, torch.pow(input=state[:, 3], exponent=2)).reshape(-1, 1)
+		Fdx = 0.5 * CD * A1 * torch.mul(rho, torch.pow(input=state[:, 1], exponent=2))
+		Fdy = 0.5 * CD * A2 * torch.mul(rho, torch.pow(input=state[:, 3], exponent=2))
 		# Acceleration due to drag, normalized
-		test1 = torch.div(torch.div(Fdx, M), 1000)
-		temp_state1 = torch.zeros((n, 5), dtype=torch.float)
-		temp_state2 = torch.zeros((n, 5), dtype=torch.float)
-		temp_state1[:, 1] = torch.div(torch.div(Fdx, M), 1000)
-		temp_state2[:, 3] = torch.div(torch.div(Fdy, M), 1000)
-		dx_drag = torch.mul(temp_state1, FRAME_TIME)
-		dy_drag = torch.mul(temp_state2, FRAME_TIME)
+		temp_state = torch.zeros((n, 5), dtype=torch.float)
+		temp_state[:, 1] = torch.div(torch.div(Fdx, M), 1000.0)
+		temp_state[:, 3] = torch.div(torch.div(Fdy, M), 1000.0)
+		delta_drag = torch.mul(temp_state, FRAME_TIME)
 
 		# Apply change in theta
 		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 2].reshape(-1, 1))
 
 		# Combine dynamics
-		state = state + delta_gravity + delta_thrust1 + delta_thrust2 + dx_drag + dy_drag + delta_theta
+		state = state + delta_gravity + delta_thrust1 + delta_thrust2 + delta_drag + delta_theta
 
 		# Update state vector
 		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0, 0.0],
