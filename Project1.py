@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 # Define global parameters
-BATCH = np.uint16(100)                     # state variables batch size
+BATCH = np.uint16(200)                     # state variables batch size
 FRAME_TIME = np.single(0.2)                 # time inteval
 # GRAVITY_ACCEL = np.single(9.81 / 1000)      # gravitaional acceleration parameter
 # BOOST_ACCEL = np.single(14.715 / 1000)      # Thrust accelleration parameter, main engine
@@ -52,24 +52,35 @@ class Dynamics(nn.Module):
 		# state[4] = theta
 
 		# Apply gravitational acceleration, only on ydot
-		delta_gravity = torch.zeros((BATCH, 2), dtype=torch.float)
+		delta_gravity = torch.zeros((BATCH, 4), dtype=torch.float)
 		#delta_gravity = delta_gravity +\
 		#	torch.tensor([0.0, 0.0, 0.0, -GRAVITY_ACCEL * FRAME_TIME, 0.0], dtype=torch.float)
 		delta_gravity = delta_gravity +\
-			torch.tensor([0.0, -GRAVITY_ACCEL * FRAME_TIME], dtype=torch.float)
+			torch.tensor([0.0, 0.0, 0.0, -GRAVITY_ACCEL * FRAME_TIME], dtype=torch.float)
 
 		# Apply thrust, main engine
-		# temp_state = torch.zeros((BATCH, 5), dtype=torch.float)
-		# temp_state[:, 1] = -torch.sin(state[:, 4])
-		# temp_state[:, 3] = torch.cos(state[:, 4])
-		#delta_thrust1 = BOOST_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 0].reshape(-1, 1))
-		delt_thrust = torch.tensor([0.0, BOOST_ACCEL * FRAME_TIME], dtype=torch.float) * action
+		# tempx = torch.zeros((BATCH, 5), dtype=torch.float)
+		# tempy = torch.zeros((BATCH, 5), dtype=torch.float)
+		# tempx.index_fill_(dim=1, index=torch.tensor([1]), value=1)
+		# tempy.index_fill_(dim=1, index=torch.tensor([3]), value=1)
+		# tempx = tempx * -torch.sin(state[:, 4].detach())
+		# tempy = tempy * torch.cos(state[:, 4].detach())
+		# temp = tempx + tempy
+		#delta_thrust1 = BOOST_ACCEL * FRAME_TIME * torch.mul(temp, action[:, 0].reshape(-1, 1))
+		delta_thrust1 = torch.mul(torch.tensor([0.0, 0.0, 0.0, BOOST_ACCEL * FRAME_TIME], dtype=torch.float),
+		                          action[:, 0].reshape(-1, 1))
 
 		# Apply thrust, side thrusters
-		# temp_state = torch.zeros((BATCH, 5), dtype=torch.float)
-		# temp_state[:, 1] = torch.cos(state[:, 4])
-		# temp_state[:, 3] = -torch.sin(state[:, 4])
-		# delta_thrust2 = BOOST2_ACCEL * FRAME_TIME * torch.mul(temp_state, action[:, 1].reshape(-1, 1))
+		# tempx = torch.zeros((BATCH, 5), dtype=torch.float)
+		# tempy = torch.zeros((BATCH, 5), dtype=torch.float)
+		# tempx.index_fill_(dim=1, index=torch.tensor([1]), value=1)
+		# tempy.index_fill_(dim=1, index=torch.tensor([3]), value=1)
+		# tempx = tempx * torch.cos(state[:, 4].detach())
+		# tempy = tempy * -torch.sin(state[:, 4].detach())
+		# temp = tempx + tempy
+		# delta_thrust2 = BOOST2_ACCEL * FRAME_TIME * torch.mul(temp, action[:, 1].reshape(-1, 1))
+		delta_thrust2 = torch.mul(torch.tensor([0.0, BOOST2_ACCEL * FRAME_TIME, 0.0, 0.0], dtype=torch.float),
+		                          action[:, 1].reshape(-1, 1))
 
 		# Apply drag
 		# rho = RHO_0 * torch.exp(-state[:, 2])
@@ -92,7 +103,7 @@ class Dynamics(nn.Module):
 
 		# Combine dynamics
 		#state = state + delta_gravity + delta_thrust1 + delta_thrust2 + delta_drag + delta_theta
-		state = state + delta_gravity + delt_thrust
+		state = state + delta_gravity + delta_thrust1 + delta_thrust2
 
 		# Update state vector
 		# step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0, 0.0],
@@ -100,8 +111,10 @@ class Dynamics(nn.Module):
 		#                          [0.0, 0.0, 1.0, FRAME_TIME, 0.0],
 		#                          [0.0, 0.0, 0.0, 1.0, 0.0],
 		#                          [0.0, 0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
-		step_mat = torch.tensor([[1.0, FRAME_TIME],
-		                         [0.0, 1.0]], dtype=torch.float)
+		step_mat = torch.tensor([[1.0, FRAME_TIME, 0.0, 0.0],
+		                         [0.0, 1.0, 0.0, 0.0],
+		                         [0.0, 0.0, 1.0, FRAME_TIME],
+		                         [0.0, 0.0, 0.0, 1.0]], dtype=torch.float)
 
 		state = torch.matmul(step_mat, state.T)
 
@@ -156,7 +169,7 @@ class Simulation(nn.Module):
 	@staticmethod
 	def intialize_state():
 		# Batch
-		rand = np.zeros((BATCH, 2), dtype=np.single)
+		rand = np.zeros((BATCH, 4), dtype=np.single)
 		for i in range(BATCH):
 			# Specifying range of starting states
 			# x, xdot, and theta:   -0.25 to 0.25
@@ -167,8 +180,10 @@ class Simulation(nn.Module):
 			# rand[i, 2] = rnd.uniform(0.75, 1.0)
 			# rand[i, 3] = rnd.uniform(-1.0, -0.75)
 			# rand[i, 4] = rnd.uniform(-0.25, 0.25)
-			rand[i, 0] = rnd.uniform(0.8, 1.0)
+			rand[i, 0] = rnd.uniform(0.4, 0.6)
 			rand[i, 1] = rnd.uniform(0.0, 0.2)
+			rand[i, 2] = rnd.uniform(0.8, 1.0)
+			rand[i, 3] = rnd.uniform(0.0, 0.2)
 
 		state = torch.tensor(data=rand, dtype=torch.float, requires_grad=False)
 
@@ -177,9 +192,8 @@ class Simulation(nn.Module):
 	# Define Simulation class error
 	@staticmethod
 	def error(state):
-		# Sum of the 2-nmom squared all divided by number of batches
+		# Sum of squares all divided by number of batches
 		return torch.sum(torch.pow(input=state, exponent=2)) / np.single(BATCH)
-		#return state[0, 0]**2 + state[0, 1].detach()**2
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
@@ -195,7 +209,7 @@ class Optimize:
 		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, verbose=True)
 		# Parameter for plotting
 		self.best_loss = torch.tensor(np.inf, dtype=torch.float, requires_grad=False)
-		self.best_state = torch.zeros((self.simulation.T, 2), dtype=torch.float, requires_grad=False)
+		self.best_state = torch.zeros((self.simulation.T, 4), dtype=torch.float, requires_grad=False)
 
 	# Define Optmize class step function
 	def step(self):
@@ -236,8 +250,8 @@ class Optimize:
 		data = np.array(self.best_state.detach())
 		t = np.arange(0.1, 20.1, 0.1)
 
-		x1 = data[:, 0]
-		y1 = data[:, 1]
+		x1 = data[:, 2]
+		y1 = data[:, 3]
 		plt.figure(num=1)
 		plt.plot(x1, y1)
 		plt.show()
@@ -251,9 +265,9 @@ if __name__ == '__main__':
 
 	# Initial test to ensure code is working
 	T = 100              # number of time steps
-	dim_input = 2       # number of state-space variables, currently 5
-	dim_hidden = 100    # size of neurnal network
-	dim_output = 1      # number of actions, currently 3
+	dim_input = 4       # number of state-space variables, currently 5
+	dim_hidden = 200    # size of neurnal network
+	dim_output = 2      # number of actions, currently 3
 
 	d = Dynamics()                                      # Created Dynamics class object
 	c = Controller(dim_input, dim_hidden, dim_output)   # Created Controller class object
