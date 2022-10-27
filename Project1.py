@@ -6,6 +6,7 @@
 import logging
 import numpy as np
 import time
+import random as rnd
 import torch
 import torch.nn as nn
 from torch import optim
@@ -37,8 +38,7 @@ class Dynamics(nn.Module):
 
 		# action: thrust or no thrust
 		# action[0]: thrust control, main engine
-		# action[1]: thrust control, side thrusters
-		# action[2]: omega control
+		# action[2]: omega control, side thrusters
 
 		# State: state variables
 		# state[0] = x
@@ -84,7 +84,7 @@ class Dynamics(nn.Module):
 		delta_drag = torch.mul(temp_state, FRAME_TIME)
 
 		# Apply change in theta
-		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 2].reshape(-1, 1))
+		delta_theta = FRAME_TIME * torch.mul(torch.tensor([0.0, 0.0, 0.0, 0.0, -1.0]), action[:, 1].reshape(-1, 1))
 
 		# Combine dynamics
 		state = state + delta_gravity + delta_thrust1 + delta_thrust2 + delta_drag + delta_theta
@@ -148,8 +148,16 @@ class Simulation(nn.Module):
 
 	@staticmethod
 	def intialize_state():
-		# Increase batch size to 1000
-		state = torch.rand(size=(1, 5), dtype=torch.float, requires_grad=False)
+		# Increase batch size to 10
+		rand = np.zeros((10, 5), dtype=np.single)
+		for i in range(10):
+			rand[i, 0] = rnd.gauss(np.single(0.0), np.single(0.1))
+			rand[i, 1] = rnd.gauss(np.single(0.0), np.single(0.1))
+			rand[i, 2] = rnd.gauss(np.single(1.0), np.single(0.1))
+			rand[i, 3] = rnd.gauss(np.single(1.0), np.single(0.1))
+			rand[i, 4] = rnd.gauss(np.single(0.0), np.single(0.1))
+
+		state = torch.tensor(data=rand, dtype=torch.float, requires_grad=False)
 
 		return state
 
@@ -157,7 +165,7 @@ class Simulation(nn.Module):
 	@staticmethod
 	def error(state):
 		# Sum of the 2-nmom squared all divided by number of batches
-		return torch.sum(torch.pow(torch.linalg.vector_norm(state, ord=2, dim=0), 2)) / state.size(dim=0)
+		return torch.sum(torch.pow(input=state, exponent=2)) / state.size(dim=0)
 
 # Define Optimizer class. Currently, using LBFGS
 class Optimize:
@@ -167,12 +175,10 @@ class Optimize:
 		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
-		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)
+		self.optimizer = optim.LBFGS(self.parameters, lr=0.1)
 		# Implementing dynamic learning rate
-		threshold = np.single(1.0)
-		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=2,
-		                                                            threshold=threshold, threshold_mode='abs',
-		                                                            cooldown=0, verbose=True)
+		#threshold = np.single(1.0)
+		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, verbose=True)
 		# Parameter for plotting
 		self.best_loss = torch.tensor(np.inf, dtype=torch.float, requires_grad=False)
 		self.best_state = torch.tensor(np.zeros((self.simulation.T, 5)), dtype=torch.float, requires_grad=False)
@@ -211,8 +217,9 @@ class Optimize:
 	# Define Optimize class visulize function, will be updated later
 	def visualize(self):
 		data = np.array(self.best_state.detach())
+		t = np.arange(0.5, 20.5, 1.0)
 
-		x1 = data[:, 0]
+		x1 = t
 		y1 = data[:, 2]
 		plt.figure(num=1)
 		plt.plot(x1, y1)
@@ -228,8 +235,8 @@ if __name__ == '__main__':
 	# Initial test to ensure code is working
 	T = 20              # number of time steps
 	dim_input = 5       # number of state-space variables, currently 5
-	dim_hidden = 150    # size of neurnal network
-	dim_output = 3      # number of actions, currently 3
+	dim_hidden = 100    # size of neurnal network
+	dim_output = 2      # number of actions, currently 3
 
 	d = Dynamics()                                      # Created Dynamics class object
 	c = Controller(dim_input, dim_hidden, dim_output)   # Created Controller class object
