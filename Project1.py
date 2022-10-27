@@ -53,7 +53,7 @@ class Dynamics(nn.Module):
 		# Apply gravitational acceleration, only on ydot
 		temp_state = torch.tensor([0.0, 0.0, 0.0, -GRAVITY_ACCEL * FRAME_TIME, 0.0], dtype=torch.float)
 		delta_gravity = torch.zeros((n, 5), dtype=torch.float)
-		delta_gravity = torch.add(input=delta_gravity, other=temp_state)
+		delta_gravity = delta_gravity + temp_state
 
 		# Apply thrust, main engine
 		temp_state = torch.zeros((n, 5), dtype=torch.float)
@@ -69,12 +69,18 @@ class Dynamics(nn.Module):
 
 		# Apply drag
 		rho = RHO_0 * torch.exp(-state[:, 2])
-		Fdx = 0.5 * CD * A1 * torch.mul(rho, torch.pow(input=state[:, 1], exponent=2))
-		Fdy = 0.5 * CD * A2 * torch.mul(rho, torch.pow(input=state[:, 3], exponent=2))
+		# Made force negative since they will cause deceleration
+		Fdx = -0.5 * CD * A1 * torch.mul(rho, torch.pow(input=state[:, 1], exponent=2))
+		Fdy = -0.5 * CD * A2 * torch.mul(rho, torch.pow(input=state[:, 3], exponent=2))
 		# Acceleration due to drag, normalized
 		temp_state = torch.zeros((n, 5), dtype=torch.float)
-		temp_state[:, 1] = torch.div(torch.div(Fdx, M), 1000.0)
-		temp_state[:, 3] = torch.div(torch.div(Fdy, M), 1000.0)
+
+		temp_state[:, 1] = torch.div(torch.div(torch.mul(Fdx, torch.cos(state[:, 4])), M), 1000.0) +\
+			torch.div(torch.div(torch.mul(Fdy, torch.sin(state[:, 4])), M), 1000.0)
+
+		temp_state[:, 3] = torch.div(torch.div(torch.mul(Fdy, torch.cos(state[:, 4])), M), 1000.0) +\
+			torch.div(torch.div(torch.mul(Fdx, torch.sin(state[:, 4])), M), 1000.0)
+
 		delta_drag = torch.mul(temp_state, FRAME_TIME)
 
 		# Apply change in theta
@@ -161,10 +167,12 @@ class Optimize:
 		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
-		self.optimizer = optim.LBFGS(self.parameters, lr=0.1)
+		self.optimizer = optim.LBFGS(self.parameters, lr=0.05)
 		# Implementing dynamic learning rate
-		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=3,
-		                                                            cooldown=1, verbose=True)
+		threshold = np.single(0.0001 * self.simulation.state.size(dim=0))
+		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=2,
+		                                                            threshold=threshold, threshold_mode='abs',
+		                                                            cooldown=0, verbose=True)
 		# Parameter for plotting
 		self.best_loss = torch.tensor(np.inf, dtype=torch.float, requires_grad=False)
 		self.best_state = torch.tensor(np.zeros((self.simulation.T, 5)), dtype=torch.float, requires_grad=False)
@@ -190,7 +198,7 @@ class Optimize:
 			loss = self.step()
 			self.scheduler.step(metrics=loss)
 			print('[%d] loss: %.3f' % (epoch + 1, loss))
-			if loss < self.best_loss:
+			if self.scheduler.num_bad_epochs == 0:
 				self.best_loss = loss
 				temp = self.simulation.state_trajectory[-1].detach()
 				(minx, idx) = torch.min(torch.linalg.vector_norm(temp, ord=2, dim=1).reshape(-1, 1), dim=0)
