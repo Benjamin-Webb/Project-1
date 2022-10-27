@@ -149,7 +149,7 @@ class Simulation(nn.Module):
 	@staticmethod
 	def intialize_state():
 		# Increase batch size to 1000
-		state = torch.rand(size=(1000, 5), dtype=torch.float, requires_grad=False)
+		state = torch.rand(size=(1, 5), dtype=torch.float, requires_grad=False)
 
 		return state
 
@@ -167,9 +167,9 @@ class Optimize:
 		super(Optimize, self).__init__()
 		self.simulation = simulation
 		self.parameters = simulation.controller.parameters()
-		self.optimizer = optim.LBFGS(self.parameters, lr=0.05)
+		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)
 		# Implementing dynamic learning rate
-		threshold = np.single(0.0001 * self.simulation.state.size(dim=0))
+		threshold = np.single(1.0)
 		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=2,
 		                                                            threshold=threshold, threshold_mode='abs',
 		                                                            cooldown=0, verbose=True)
@@ -198,7 +198,7 @@ class Optimize:
 			loss = self.step()
 			self.scheduler.step(metrics=loss)
 			print('[%d] loss: %.3f' % (epoch + 1, loss))
-			if self.scheduler.num_bad_epochs == 0:
+			if loss < self.best_loss:
 				self.best_loss = loss
 				temp = self.simulation.state_trajectory[-1].detach()
 				(minx, idx) = torch.min(torch.linalg.vector_norm(temp, ord=2, dim=1).reshape(-1, 1), dim=0)
