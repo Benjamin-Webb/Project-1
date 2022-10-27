@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 # Define global parameters
-BATCH = np.uint16(200)                     # state variables batch size
+BATCH = np.uint16(400)                     # state variables batch size
 FRAME_TIME = np.single(0.2)                 # time inteval
 # GRAVITY_ACCEL = np.single(9.81 / 1000)      # gravitaional acceleration parameter
 # BOOST_ACCEL = np.single(14.715 / 1000)      # Thrust accelleration parameter, main engine
