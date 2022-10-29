@@ -223,35 +223,63 @@ class Optimize:
 					self.best_state[i, :] = temp_state[idx, :]
 					self.best_action[i, :] = temp_action[idx, :]
 
-				#self.visualize(epoch)                                # Will update later
-
 			if epoch == epochs - 1:
-				self.visualize(epoch)
+				self.visualize()
 
-	# Define Optimize class visulize function, will be updated later
-	def visualize(self, epoch):
+	# Define Optimize class visulize function
+	def visualize(self):
 		data = np.array(self.best_state.detach())
+		data2 = np.array(self.best_action.detach())
 		t = np.arange(0.1, 20.1, 0.1)
-
-		if epoch == 0:
-			plt.ion()
 
 		x1 = data[:, 0]
 		y1 = data[:, 1]
 		plt.figure(num=1)
 		plt.plot(x1, y1)
+		plt.grid(visible=True, which='both', axis='both')
+		plt.title('State With Lowest Loss Function')
+		plt.ylabel('xdot')
+		plt.xlabel('x')
 		plt.show()
 
 		x1 = data[:, 2]
 		y1 = data[:, 3]
 		plt.figure(num=2)
 		plt.plot(x1, y1)
+		plt.grid(visible=True, which='both', axis='both')
+		plt.title('State With Lowest Loss Function')
+		plt.ylabel('ydot')
+		plt.xlabel('y')
 		plt.show()
 
 		x1 = t
 		y1 = data[:, 4]
 		plt.figure(num=3)
 		plt.plot(x1, y1)
+		plt.grid(visible=True, which='both', axis='both')
+		plt.title('State With Lowest Loss Function')
+		plt.ylabel('phi')
+		plt.xlabel('t')
+		plt.show()
+
+		x1 = t
+		y1 = data2[:, 0]
+		plt.figure(num=4)
+		plt.plot(x1, y1)
+		plt.grid(visible=True, which='both', axis='both')
+		plt.title('State With Lowest Loss Function')
+		plt.ylabel('Main Thruster Control State')
+		plt.xlabel('t')
+		plt.show()
+
+		x1 = t
+		y1 = data2[:, 1]
+		plt.figure(num=5)
+		plt.plot(x1, y1)
+		plt.grid(visible=True, which='both', axis='both')
+		plt.title('State With Lowest Loss Function')
+		plt.ylabel('Side Thrusters Control State')
+		plt.xlabel('t')
 		plt.show()
 
 

@@ -169,35 +169,7 @@
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula $\mathrm{x:\;0.0\,to\,0.2}$
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\mathrm{\dot{x}:\;0.0\,to\,0.2}$
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\mathrm{y:\;0.8\,to\,1.0}$
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\mathrm{\dot{y}:\;0.0\,to\,0.2}$
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\mathrm{\phi:\;-0.1\,to\,0.1}$
+\begin_inset Formula $\mathrm{\dot{x}:\;0.0}$
 \end_inset
 
 
