@@ -15,11 +15,8 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 # Define global parameters
-BATCH = np.uint16(500)                     # state variables batch size
-FRAME_TIME = np.single(0.2)                 # time inteval
-# GRAVITY_ACCEL = np.single(9.81 / 1000)      # gravitaional acceleration parameter
-# BOOST_ACCEL = np.single(14.715 / 1000)      # Thrust accelleration parameter, main engine
-# BOOST2_ACCEL = np.single(1.4715 / 1000)     # Thrust acceleration parameter, side thrusters
+BATCH = np.uint16(250)                     # state variables batch size
+FRAME_TIME = np.single(0.1)                 # time inteval
 GRAVITY_ACCEL = np.single(0.0981)             # gravitaional acceleration parameter
 BOOST_ACCEL = np.single(0.18)      # Thrust accelleration parameter, main engine
 BOOST2_ACCEL = np.single(0.018)     # Thrust acceleration parameter, side thrusters
@@ -126,7 +123,7 @@ class Controller(nn.Module):
 		self.network = nn.Sequential(nn.Linear(dim_input, dim_hidden),
 		                             nn.Tanh(), nn.Linear(dim_hidden, dim_hidden),
 		                             nn.ELU(),  nn.Linear(dim_hidden, dim_hidden),
-		                             nn.GELU(), nn.Linear(dim_hidden, dim_output), nn.Sigmoid())
+		                             nn.ELU(alpha=0.5), nn.Linear(dim_hidden, dim_output), nn.Softsign())
 
 	# define Controller forward method
 	def forward(self, state):
@@ -163,7 +160,7 @@ class Simulation(nn.Module):
 		# Batch
 		rand = np.zeros((BATCH, 5), dtype=np.single)
 		for i in range(BATCH):
-			rand[i, 0] = rnd.uniform(0.4, 0.6)
+			rand[i, 0] = rnd.uniform(0.0, 0.2)
 			rand[i, 1] = rnd.uniform(0.0, 0.2)
 			rand[i, 2] = rnd.uniform(0.8, 1.0)
 			rand[i, 3] = rnd.uniform(0.0, 0.2)
@@ -189,7 +186,7 @@ class Optimize:
 		self.parameters = simulation.controller.parameters()
 		self.optimizer = optim.LBFGS(self.parameters, lr=0.01)
 		# Implementing dynamic learning rate
-		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=1, verbose=True)
+		self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, patience=5, verbose=True)
 		# Parameter for plotting
 		self.best_loss = torch.tensor(np.inf, dtype=torch.float, requires_grad=False)
 		self.best_state = torch.zeros((self.simulation.T, 5), dtype=torch.float, requires_grad=False)
@@ -226,19 +223,34 @@ class Optimize:
 					self.best_state[i, :] = temp_state[idx, :]
 					self.best_action[i, :] = temp_action[idx, :]
 
-				self.visualize()                                # Will update later
+				#self.visualize(epoch)                                # Will update later
 
-			if epoch == 40:
-				self.visualize()
+			if epoch == epochs - 1:
+				self.visualize(epoch)
 
 	# Define Optimize class visulize function, will be updated later
-	def visualize(self):
+	def visualize(self, epoch):
 		data = np.array(self.best_state.detach())
-		t = np.arange(0.2, 20.2, 0.2)
+		t = np.arange(0.1, 20.1, 0.1)
+
+		if epoch == 0:
+			plt.ion()
+
+		x1 = data[:, 0]
+		y1 = data[:, 1]
+		plt.figure(num=1)
+		plt.plot(x1, y1)
+		plt.show()
 
 		x1 = data[:, 2]
 		y1 = data[:, 3]
-		plt.figure(num=1)
+		plt.figure(num=2)
+		plt.plot(x1, y1)
+		plt.show()
+
+		x1 = t
+		y1 = data[:, 4]
+		plt.figure(num=3)
 		plt.plot(x1, y1)
 		plt.show()
 
@@ -250,10 +262,10 @@ if __name__ == '__main__':
 	start_time = time.time()
 
 	# Initial test to ensure code is working
-	T = 100              # number of time steps
+	T = 200             # number of time steps
 	dim_input = 5       # number of state-space variables, currently 5
-	dim_hidden = 250    # size of neurnal network
-	dim_output = 2      # number of actions, currently 3
+	dim_hidden = 500    # size of neurnal network
+	dim_output = 2      # number of actions, currently 2
 
 	d = Dynamics()                                      # Created Dynamics class object
 	c = Controller(dim_input, dim_hidden, dim_output)   # Created Controller class object
